@@ -23,6 +23,7 @@
 
   #individual { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; padding: 0 16px 32px; max-width: 1600px; margin: auto; }
   #individual model-viewer { height: 75vh; border-radius: 12px; }
+  .loading { position: absolute; inset: 0; display: grid; place-items: center; pointer-events: none; font-size: 1.1rem; opacity: .8; }
   #plain { position: absolute; top: 12px; right: 12px; padding: 6px 12px; border: 0; border-radius: 999px; background: #2a2823; color: inherit; font: inherit; font-size: .9rem; cursor: pointer; }
   #plain[aria-pressed="true"] { background: #e8b84a; color: #1b1a17; }
   #refs { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -51,21 +52,22 @@
 
 <main id="grupo">
   <figure>
-    <model-viewer src="jatai.glb" alt="Modelo 3D da abelha jataí" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
+    <model-viewer src="jatai.glb" alt="Modelo 3D da abelha jataí" camera-controls auto-rotate shadow-intensity="1"><div class="loading" role="status">Carregando…</div></model-viewer>
     <figcaption>Jataí <a href="#jatai">Ver individual →</a></figcaption>
   </figure>
   <figure>
-    <model-viewer src="mamangava.glb" alt="Modelo 3D da mamangava" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
+    <model-viewer src="mamangava.glb" alt="Modelo 3D da mamangava" camera-controls auto-rotate shadow-intensity="1"><div class="loading" role="status">Carregando…</div></model-viewer>
     <figcaption>Mamangava <a href="#mamangava">Ver individual →</a></figcaption>
   </figure>
   <figure>
-    <model-viewer src="europeia.glb" alt="Modelo 3D da abelha europeia" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
+    <model-viewer src="europeia.glb" alt="Modelo 3D da abelha europeia" camera-controls auto-rotate shadow-intensity="1"><div class="loading" role="status">Carregando…</div></model-viewer>
     <figcaption>Abelha europeia <a href="#europeia">Ver individual →</a></figcaption>
   </figure>
 </main>
 
 <main id="individual" hidden>
   <model-viewer id="mv" camera-controls shadow-intensity="1">
+    <div class="loading" role="status">Carregando…</div>
     <button id="plain" aria-pressed="false" title="Ver só a forma, como numa impressão 3D">Sem textura</button>
   </model-viewer>
   <section id="refs" aria-label="Referências">
@@ -101,6 +103,7 @@
     }
     if (!info) return;
     // attributes, not properties: this can run before <model-viewer> is defined
+    if ($('mv').getAttribute('src') !== `${bee}.glb`) $('mv').querySelector('.loading').hidden = false;
     $('mv').setAttribute('src', `${bee}.glb`);
     $('mv').setAttribute('alt', `Modelo 3D da ${info.name}`);
     $('thumbs').innerHTML = '';
@@ -142,6 +145,14 @@
     applyPlain();
   };
   $('mv').addEventListener('load', () => { originals = null; applyPlain(); });  // new bee keeps the chosen mode
+
+  // "Carregando…" until each model is ready, with download progress
+  for (const m of document.querySelectorAll('model-viewer')) {
+    const msg = m.querySelector('.loading');
+    m.addEventListener('progress', e => { msg.textContent = `Carregando… ${Math.round(e.detail.totalProgress * 100)}%`; });
+    m.addEventListener('load', () => { msg.hidden = true; });
+    m.addEventListener('error', () => { msg.textContent = 'Não foi possível carregar o modelo.'; });
+  }
 
   addEventListener('hashchange', route);
   route();
