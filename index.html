@@ -23,6 +23,8 @@
 
   #individual { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; padding: 0 16px 32px; max-width: 1600px; margin: auto; }
   #individual model-viewer { height: 75vh; border-radius: 12px; }
+  #plain { position: absolute; top: 12px; right: 12px; padding: 6px 12px; border: 0; border-radius: 999px; background: #2a2823; color: inherit; font: inherit; font-size: .9rem; cursor: pointer; }
+  #plain[aria-pressed="true"] { background: #e8b84a; color: #1b1a17; }
   #refs { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
   #refs > img { width: 100%; height: calc(75vh - 96px); object-fit: contain; background: #2a2823; border-radius: 12px; }
   #thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
@@ -63,7 +65,9 @@
 </main>
 
 <main id="individual" hidden>
-  <model-viewer id="mv" camera-controls shadow-intensity="1"></model-viewer>
+  <model-viewer id="mv" camera-controls shadow-intensity="1">
+    <button id="plain" aria-pressed="false" title="Ver só a forma, como numa impressão 3D">Sem textura</button>
+  </model-viewer>
   <section id="refs" aria-label="Referências">
     <img id="big" alt="">
     <div id="thumbs"></div>
@@ -111,6 +115,34 @@
     $('semref').hidden = !!info.refs;
     if (info.refs) show(1, bee);
   }
+  // "Sem textura": plain matte grey, no maps, opaque wings — only the geometry, like a print.
+  // Originals are saved per model load so the button can switch back.
+  let originals = null;
+  function applyPlain() {
+    const plain = $('plain').getAttribute('aria-pressed') === 'true';
+    const mats = $('mv').model?.materials ?? [];
+    if (!originals) originals = mats.map(m => {
+      const p = m.pbrMetallicRoughness;
+      return { color: p.baseColorFactor, metal: p.metallicFactor, rough: p.roughnessFactor, alpha: m.getAlphaMode(), ior: m.ior,
+               tex: [p.baseColorTexture, p.metallicRoughnessTexture, m.normalTexture, m.occlusionTexture, m.emissiveTexture,
+                     m.specularColorTexture].map(t => [t, t.texture]) };
+    });
+    mats.forEach((m, i) => {
+      const o = originals[i], p = m.pbrMetallicRoughness;
+      for (const [t, tex] of o.tex) t.setTexture(plain ? null : tex);
+      m.setIor(plain ? 1.5 : o.ior);  // the exports carry ior 1000 (near-mirror); plastic is ~1.5
+      p.setBaseColorFactor(plain ? [0.4, 0.4, 0.4, 1] : o.color);
+      p.setMetallicFactor(plain ? 0 : o.metal);
+      p.setRoughnessFactor(plain ? 0.6 : o.rough);
+      m.setAlphaMode(plain ? 'OPAQUE' : o.alpha);
+    });
+  }
+  $('plain').onclick = () => {
+    $('plain').setAttribute('aria-pressed', $('plain').getAttribute('aria-pressed') !== 'true');
+    applyPlain();
+  };
+  $('mv').addEventListener('load', () => { originals = null; applyPlain(); });  // new bee keeps the chosen mode
+
   addEventListener('hashchange', route);
   route();
 </script>
