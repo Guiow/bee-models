@@ -7,30 +7,112 @@
 <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/4.0.0/model-viewer.min.js" integrity="sha384-sr9b4Ux0WhAUGclJ0ym0FSY2zSOMmNSn0bP/SA0e6bNCrpn/5W3QL8mm+LdlQMKw" crossorigin="anonymous"></script>
 <style>
   body { margin: 0; font-family: system-ui, sans-serif; background: #1b1a17; color: #f3ede0; }
-  h1 { text-align: center; font-weight: 600; margin: 32px 16px 8px; }
-  p.hint { text-align: center; opacity: .7; margin: 0 16px 24px; }
-  main { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; padding: 0 16px 32px; max-width: 1400px; margin: auto; }
+  a { color: inherit; }
+  h1 { text-align: center; font-weight: 600; margin: 24px 16px 8px; }
+  nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin: 0 16px 8px; }
+  nav a { text-decoration: none; padding: 6px 14px; border-radius: 999px; background: #2a2823; }
+  nav a[aria-current="page"] { background: #e8b84a; color: #1b1a17; }
+  p.hint { text-align: center; opacity: .7; margin: 8px 16px 20px; }
+  [hidden] { display: none !important; }
+  model-viewer { width: 100%; background: radial-gradient(#3a372f, #22201b); }
+
+  #grupo { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; padding: 0 16px 32px; max-width: 1400px; margin: auto; }
   figure { margin: 0; background: #2a2823; border-radius: 12px; overflow: hidden; }
-  model-viewer { width: 100%; height: 420px; background: radial-gradient(#3a372f, #22201b); }
-  figcaption { padding: 12px 16px; font-size: 1.1rem; }
+  #grupo model-viewer { height: 420px; }
+  figcaption { padding: 12px 16px; font-size: 1.1rem; display: flex; justify-content: space-between; }
+
+  #individual { display: grid; grid-template-columns: 3fr 2fr; gap: 16px; padding: 0 16px 32px; max-width: 1600px; margin: auto; }
+  #individual model-viewer { height: 75vh; border-radius: 12px; }
+  #refs { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+  #refs > img { width: 100%; height: calc(75vh - 96px); object-fit: contain; background: #2a2823; border-radius: 12px; }
+  #thumbs { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 4px; }
+  #thumbs button { flex: none; padding: 0; border: 2px solid transparent; border-radius: 8px; background: none; cursor: pointer; }
+  #thumbs button[aria-pressed="true"] { border-color: #e8b84a; }
+  #thumbs img { display: block; width: 80px; height: 72px; object-fit: cover; border-radius: 6px; }
+  #semref { margin: auto; opacity: .7; }
+  @media (max-width: 800px) {
+    #individual { grid-template-columns: 1fr; }
+    #individual model-viewer { height: 60vh; }
+    #refs > img { height: 50vh; }
+  }
 </style>
 </head>
 <body>
 <h1>Abelhas 3D</h1>
+<nav>
+  <a href="#grupo">Grupo</a>
+  <a href="#jatai">Jataí</a>
+  <a href="#mamangava">Mamangava</a>
+  <a href="#europeia">Europeia</a>
+</nav>
 <p class="hint">Arraste para girar · role ou pince para dar zoom</p>
-<main>
+
+<main id="grupo">
   <figure>
     <model-viewer src="jatai.glb" alt="Modelo 3D da abelha jataí" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
-    <figcaption>Jataí</figcaption>
+    <figcaption>Jataí <a href="#jatai">Ver individual →</a></figcaption>
   </figure>
   <figure>
     <model-viewer src="mamangava.glb" alt="Modelo 3D da mamangava" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
-    <figcaption>Mamangava</figcaption>
+    <figcaption>Mamangava <a href="#mamangava">Ver individual →</a></figcaption>
   </figure>
   <figure>
     <model-viewer src="europeia.glb" alt="Modelo 3D da abelha europeia" camera-controls auto-rotate shadow-intensity="1"></model-viewer>
-    <figcaption>Abelha europeia</figcaption>
+    <figcaption>Abelha europeia <a href="#europeia">Ver individual →</a></figcaption>
   </figure>
 </main>
+
+<main id="individual" hidden>
+  <model-viewer id="mv" camera-controls shadow-intensity="1"></model-viewer>
+  <section id="refs" aria-label="Referências">
+    <img id="big" alt="">
+    <div id="thumbs"></div>
+    <p id="semref" hidden>Sem imagens de referência para esta abelha.</p>
+  </section>
+</main>
+
+<script>
+  // number of images in refs/<bee>-N.webp
+  const BEES = {
+    jatai: { name: 'Jataí', refs: 9 },
+    mamangava: { name: 'Mamangava', refs: 12 },
+    europeia: { name: 'Abelha europeia', refs: 0 },
+  };
+  const $ = id => document.getElementById(id);
+
+  function show(i, bee) {
+    $('big').src = `refs/${bee}-${i}.webp`;
+    $('big').alt = `Referência ${i} da ${BEES[bee].name}`;
+    for (const b of $('thumbs').children) b.setAttribute('aria-pressed', b.dataset.i == i);
+  }
+
+  function route() {
+    const bee = location.hash.slice(1);
+    const info = BEES[bee];
+    $('grupo').hidden = !!info;
+    $('individual').hidden = !info;
+    for (const a of document.querySelectorAll('nav a')) {
+      if (a.getAttribute('href') === '#' + (info ? bee : 'grupo')) a.setAttribute('aria-current', 'page');
+      else a.removeAttribute('aria-current');
+    }
+    if (!info) return;
+    // attributes, not properties: this can run before <model-viewer> is defined
+    $('mv').setAttribute('src', `${bee}.glb`);
+    $('mv').setAttribute('alt', `Modelo 3D da ${info.name}`);
+    $('thumbs').innerHTML = '';
+    for (let i = 1; i <= info.refs; i++) {
+      const b = document.createElement('button');
+      b.dataset.i = i;
+      b.innerHTML = `<img src="refs/${bee}-${i}.webp" alt="Referência ${i}" loading="lazy">`;
+      b.onclick = () => show(i, bee);
+      $('thumbs').append(b);
+    }
+    $('big').hidden = $('thumbs').hidden = !info.refs;
+    $('semref').hidden = !!info.refs;
+    if (info.refs) show(1, bee);
+  }
+  addEventListener('hashchange', route);
+  route();
+</script>
 </body>
 </html>
